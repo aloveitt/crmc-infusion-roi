@@ -108,7 +108,15 @@ summary_df = pd.DataFrame({
     "Cum NPV ($)": np.round(cumulative_npv)
 })
 
-st.dataframe(summary_df.style.format("{:,.0f}"), use_container_width=True)
+st.dataframe(summary_df.style.format({
+    "Visits": "{:,.0f}",
+    "Revenue ($)": "{:,.0f}",
+    "Op Costs ($)": "{:,.0f}",
+    "Net Income ($)": "{:,.0f}",
+    "Cum Cashflow ($)": "{:,.0f}",
+    "NPV ($)": "{:,.0f}",
+    "Cum NPV ($)": "{:,.0f}"
+}), use_container_width=True)
 
 # ROI Chart
 st.subheader("💡 Breakeven Visualization")
