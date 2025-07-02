@@ -30,7 +30,7 @@ with st.sidebar:
     sqft_per_chair = st.number_input("Square Feet per Chair", value=100)
     cost_per_sqft = st.number_input("Construction Cost per Sqft ($)", value=400)
     equipment_cost_per_chair = st.number_input("Equipment Cost per Chair ($)", value=20000)
-    utilization_rate = st.slider("Chair Utilization Rate (%)", min_value=50, max_value=100, value=85) / 100
+    utilization_rate = st.slider("Chair Utilization Rate (%)", min_value=0, max_value=100, value=50) / 100
 
     st.subheader("🩺 Operating Costs")
     rn_cost = st.number_input("RN Annual Cost per FTE ($)", value=90000)
@@ -49,9 +49,7 @@ with st.sidebar:
     forecast_years = st.number_input("Forecast Period (Years)", value=10)
     discount_rate = st.number_input("Discount Rate (%)", value=3.0) / 100
 
-    growth_toggle = st.checkbox("Include Annual Visit Growth?")
     annual_growth = st.number_input("Annual Visit Growth (%)", value=5.0) / 100 if growth_toggle else 0.0
-    show_growth_chart = st.checkbox("Show Growth Forecast Chart?")
 
 # ---------------- Calculations ----------------
 facility_sqft = num_chairs * sqft_per_chair
@@ -133,19 +131,18 @@ else:
     st.error(f"❌ Project not profitable over 10 years. NPV = ${final_npv:,.0f}")
 
 # ---------------- Growth Forecast Chart ----------------
-if show_growth_chart:
-    st.subheader("📈 Projected Annual Infusion Visits")
-    fig2, ax2 = plt.subplots()
-    years = list(range(1, forecast_years + 1))
-    ax2.plot(years, visits_per_year, marker="o", label="Adjusted Visits (Utilization + Growth)")
-    ax2.plot(years, [max_visits] * forecast_years, linestyle="--", color="gray", label="100% Max Capacity")
-    ax2.plot(years, [max_visits * 0.85] * forecast_years, linestyle="--", color="orange", label="85% Target Max")
-    ax2.set_xlabel("Year")
-    ax2.set_ylabel("Annual Infusion Visits")
-    ax2.set_title("Projected Visit Volume Over Time")
-    ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
-    ax2.legend()
-    st.pyplot(fig2)
+st.subheader("📈 Projected Annual Infusion Visits")
+fig2, ax2 = plt.subplots()
+years = list(range(1, forecast_years + 1))
+ax2.plot(years, visits_per_year, marker="o", label="Adjusted Visits (Utilization + Growth)")
+ax2.plot(years, [max_visits] * forecast_years, linestyle="--", color="gray", label="100% Max Capacity")
+ax2.plot(years, [max_visits * 0.85] * forecast_years, linestyle="--", color="orange", label="85% Target Max")
+ax2.set_xlabel("Year")
+ax2.set_ylabel("Annual Infusion Visits")
+ax2.set_title("Projected Visit Volume Over Time")
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+ax2.legend()
+st.pyplot(fig2)
 
 # ---------------- FAQ Section ----------------
 with st.expander("ℹ️ FAQ & Financial Definitions"):
