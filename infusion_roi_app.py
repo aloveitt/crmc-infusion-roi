@@ -158,3 +158,4 @@ The annual % used to adjust future earnings back to present-day value. Higher = 
 
 **Chair Utilization (%):**  
 Reflects real-world
+    """)
