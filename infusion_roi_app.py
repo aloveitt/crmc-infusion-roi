@@ -30,6 +30,7 @@ with st.sidebar:
     sqft_per_chair = st.number_input("Square Feet per Chair", value=100)
     cost_per_sqft = st.number_input("Construction Cost per Sqft ($)", value=400)
     equipment_cost_per_chair = st.number_input("Equipment Cost per Chair ($)", value=20000)
+    utilization_rate = st.slider("Chair Utilization Rate (%)", min_value=50, max_value=100, value=85) / 100
 
     st.subheader("🩺 Operating Costs")
     rn_cost = st.number_input("RN Annual Cost per FTE ($)", value=90000)
@@ -64,10 +65,12 @@ rn_cost_total = rn_fte_required * rn_cost
 visits_per_year = []
 for year in range(forecast_years):
     if year == 0:
-        visits = num_chairs * visits_per_chair_per_day * days_per_year
+        raw_visits = num_chairs * visits_per_chair_per_day * days_per_year
     else:
-        visits = visits_per_year[-1] * (1 + annual_growth)
-    visits_per_year.append(visits)
+        raw_visits = visits_per_year[-1] / utilization_rate * (1 + annual_growth)
+
+    adjusted_visits = raw_visits * utilization_rate
+    visits_per_year.append(adjusted_visits)
 
 # Annual Financials
 revenue = [v * reimbursement for v in visits_per_year]
@@ -102,16 +105,19 @@ summary_df = pd.DataFrame({
     "Cum NPV ($)": np.round(cumulative_npv)
 })
 
-st.dataframe(summary_df.style.format("{:,}"), use_container_width=True)
+st.dataframe(summary_df.style.format("{:,.0f}"), use_container_width=True)
 
 # Chart
 st.subheader("💡 Breakeven Visualization")
 fig, ax = plt.subplots()
-ax.plot(summary_df["Year"], summary_df["Cum NPV ($)"], marker="o")
-ax.axhline(0, color='red', linestyle='--')
+ax.plot(summary_df["Year"], summary_df["Cum NPV ($)"], marker="o", label="Cumulative NPV")
+ax.axhline(0, color='red', linestyle='--', linewidth=1)
 ax.set_xlabel("Year")
 ax.set_ylabel("Cumulative Net Gain ($)")
 ax.set_title("Net Present Value Over Time")
+ax.ticklabel_format(style='plain', axis='y')
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"${x:,.0f}"))
+ax.legend()
 st.pyplot(fig)
 
 # Interpretation
@@ -120,3 +126,28 @@ if final_npv > 0:
     st.success(f"✅ Positive ROI. 10-Year NPV = ${final_npv:,.0f}")
 else:
     st.error(f"❌ Project not profitable over 10 years. NPV = ${final_npv:,.0f}")
+
+# ---------------- FAQ Section ----------------
+with st.expander("ℹ️ FAQ & Financial Definitions"):
+    st.markdown("""
+**Net Present Value (NPV):**  
+The total profit of a project in today’s dollars, accounting for inflation and risk. NPV > 0 means it’s worth doing.
+
+**Discount Rate:**  
+The annual % used to adjust future earnings back to present-day value. Higher = more conservative.
+
+**Chair Utilization (%):**  
+Reflects real-world capacity — chairs are rarely at 100% due to clean-up, late arrivals, and downtime. This input adjusts total visits and revenue.
+
+**RN FTE Calculation:**  
+Calculated based on total chairs, shifts/day, and chair-to-RN ratio.
+
+**Breakeven Point:**  
+The year when cumulative NPV becomes positive — meaning you’ve recovered your capital investment and are generating true profit.
+
+**Forecast Period:**  
+The number of years the ROI model looks ahead. Longer periods can show delayed profitability.
+
+**Why This Matters:**  
+This tool helps model different growth and investment strategies for infusion expansion — letting you size the buildout to match projected demand, staffing, and space.
+    """)
