@@ -51,6 +51,7 @@ with st.sidebar:
 
     growth_toggle = st.checkbox("Include Annual Visit Growth?")
     annual_growth = st.number_input("Annual Visit Growth (%)", value=5.0) / 100 if growth_toggle else 0.0
+    show_growth_chart = st.checkbox("Show Growth Forecast Chart?")
 
 # ---------------- Calculations ----------------
 facility_sqft = num_chairs * sqft_per_chair
@@ -63,13 +64,17 @@ rn_cost_total = rn_fte_required * rn_cost
 
 # Visits per year
 visits_per_year = []
+raw_visits_per_year = []
+max_visits = num_chairs * visits_per_chair_per_day * days_per_year
+
 for year in range(forecast_years):
     if year == 0:
-        raw_visits = num_chairs * visits_per_chair_per_day * days_per_year
+        raw_visits = max_visits
     else:
-        raw_visits = visits_per_year[-1] / utilization_rate * (1 + annual_growth)
+        raw_visits = raw_visits_per_year[-1] * (1 + annual_growth)
 
     adjusted_visits = raw_visits * utilization_rate
+    raw_visits_per_year.append(raw_visits)
     visits_per_year.append(adjusted_visits)
 
 # Annual Financials
@@ -107,7 +112,7 @@ summary_df = pd.DataFrame({
 
 st.dataframe(summary_df.style.format("{:,.0f}"), use_container_width=True)
 
-# Chart
+# ROI Chart
 st.subheader("💡 Breakeven Visualization")
 fig, ax = plt.subplots()
 ax.plot(summary_df["Year"], summary_df["Cum NPV ($)"], marker="o", label="Cumulative NPV")
@@ -127,6 +132,21 @@ if final_npv > 0:
 else:
     st.error(f"❌ Project not profitable over 10 years. NPV = ${final_npv:,.0f}")
 
+# ---------------- Growth Forecast Chart ----------------
+if show_growth_chart:
+    st.subheader("📈 Projected Annual Infusion Visits")
+    fig2, ax2 = plt.subplots()
+    years = list(range(1, forecast_years + 1))
+    ax2.plot(years, visits_per_year, marker="o", label="Adjusted Visits (Utilization + Growth)")
+    ax2.plot(years, [max_visits] * forecast_years, linestyle="--", color="gray", label="100% Max Capacity")
+    ax2.plot(years, [max_visits * 0.85] * forecast_years, linestyle="--", color="orange", label="85% Target Max")
+    ax2.set_xlabel("Year")
+    ax2.set_ylabel("Annual Infusion Visits")
+    ax2.set_title("Projected Visit Volume Over Time")
+    ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+    ax2.legend()
+    st.pyplot(fig2)
+
 # ---------------- FAQ Section ----------------
 with st.expander("ℹ️ FAQ & Financial Definitions"):
     st.markdown("""
@@ -137,17 +157,4 @@ The total profit of a project in today’s dollars, accounting for inflation and
 The annual % used to adjust future earnings back to present-day value. Higher = more conservative.
 
 **Chair Utilization (%):**  
-Reflects real-world capacity — chairs are rarely at 100% due to clean-up, late arrivals, and downtime. This input adjusts total visits and revenue.
-
-**RN FTE Calculation:**  
-Calculated based on total chairs, shifts/day, and chair-to-RN ratio.
-
-**Breakeven Point:**  
-The year when cumulative NPV becomes positive — meaning you’ve recovered your capital investment and are generating true profit.
-
-**Forecast Period:**  
-The number of years the ROI model looks ahead. Longer periods can show delayed profitability.
-
-**Why This Matters:**  
-This tool helps model different growth and investment strategies for infusion expansion — letting you size the buildout to match projected demand, staffing, and space.
-    """)
+Reflects real-world
