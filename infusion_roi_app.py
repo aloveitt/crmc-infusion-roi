@@ -48,8 +48,7 @@ with st.sidebar:
     st.subheader("📈 Forecast Settings")
     forecast_years = st.number_input("Forecast Period (Years)", value=10)
     discount_rate = st.number_input("Discount Rate (%)", value=3.0) / 100
-    growth_toggle = st.checkbox("Include Annual Visit Growth?")
-    annual_growth = st.number_input("Annual Visit Growth (%)", value=5.0) / 100 if growth_toggle else 0.0
+    annual_growth = st.slider("Annual Visit Growth (%)", min_value=0.0, max_value=10.0, value=3.0, step=0.1) / 100
 
 # ---------------- Calculations ----------------
 facility_sqft = num_chairs * sqft_per_chair
@@ -75,7 +74,7 @@ for year in range(forecast_years):
     raw_visits_per_year.append(raw_visits)
     visits_per_year.append(adjusted_visits)
 
-# Annual Financials
+# Financials
 revenue = [v * reimbursement for v in visits_per_year]
 supply_costs = [v * supply_cost_per_visit for v in visits_per_year]
 operating_costs = [rn_cost_total + overhead_cost + sc for sc in supply_costs]
@@ -130,7 +129,7 @@ if final_npv > 0:
 else:
     st.error(f"❌ Project not profitable over 10 years. NPV = ${final_npv:,.0f}")
 
-# ---------------- Growth Forecast Chart (Always Visible) ----------------
+# Growth Forecast Chart (Always Visible)
 st.subheader("📈 Projected Annual Infusion Visits")
 fig2, ax2 = plt.subplots()
 years = list(range(1, forecast_years + 1))
@@ -144,8 +143,10 @@ ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
 ax2.legend()
 st.pyplot(fig2)
 
-# ---------------- FAQ Section ----------------
-with st.expander("ℹ️ FAQ & Financial Definitions"):
+# Tabs: FAQ & Calculations
+tab1, tab2 = st.tabs(["📘 FAQ & Definitions", "🧮 Calculations & Formulas"])
+
+with tab1:
     st.markdown("""
 **Net Present Value (NPV):**  
 The total profit of a project in today’s dollars, accounting for inflation and risk. NPV > 0 means it’s worth doing.
@@ -166,8 +167,30 @@ The year when cumulative NPV becomes positive — meaning you’ve recovered you
 The number of years the ROI model looks ahead. Longer periods can show delayed profitability.
 
 **Visit Growth Forecast:**  
-Optional feature to model patient volume growth (e.g., from new neurologist or oncology demand). Applies % increase to capacity each year.
+Applies % growth to infusion volume each year to simulate demand increases.
+    """)
 
-**Why This Matters:**  
-This tool helps model different growth and investment strategies for infusion expansion — letting you size the buildout to match projected demand, staffing, and space.
+with tab2:
+    st.markdown("""
+**Capital Cost Formulas:**  
+- Construction Cost = Chairs × SqFt/Chair × Cost/SqFt  
+- Equipment Cost = Chairs × Cost per Chair  
+- Total Capital Cost = Construction + Equipment  
+
+**Operating Cost Formulas:**  
+- RN FTEs = ceil((Chairs ÷ Chairs/RN) × Shifts/Day)  
+- RN Cost = RN FTEs × Cost per RN  
+- Drug/Supply Cost = Visits × Supply Cost per Visit  
+- Total Operating Cost = RN Cost + Overhead + Drug/Supply Cost  
+
+**Revenue & Visits:**  
+- Max Visits = Chairs × Visits/Chair/Day × Days/Year  
+- Adjusted Visits = Max Visits × Utilization × (1 + Growth Rate)^Year  
+- Total Revenue = Adjusted Visits × Reimbursement  
+
+**Profit & ROI:**  
+- Net Income = Revenue − Operating Cost  
+- Year 0 Cashflow = Net Income − Capital Cost  
+- Discounted Cash = Cash ÷ (1 + Discount Rate)^Year  
+- Cumulative NPV = Sum of Discounted Cash Flows
     """)
