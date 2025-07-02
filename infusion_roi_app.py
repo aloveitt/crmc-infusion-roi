@@ -48,7 +48,7 @@ with st.sidebar:
     st.subheader("📈 Forecast Settings")
     forecast_years = st.number_input("Forecast Period (Years)", value=10)
     discount_rate = st.number_input("Discount Rate (%)", value=3.0) / 100
-
+    growth_toggle = st.checkbox("Include Annual Visit Growth?")
     annual_growth = st.number_input("Annual Visit Growth (%)", value=5.0) / 100 if growth_toggle else 0.0
 
 # ---------------- Calculations ----------------
@@ -130,7 +130,7 @@ if final_npv > 0:
 else:
     st.error(f"❌ Project not profitable over 10 years. NPV = ${final_npv:,.0f}")
 
-# ---------------- Growth Forecast Chart ----------------
+# ---------------- Growth Forecast Chart (Always Visible) ----------------
 st.subheader("📈 Projected Annual Infusion Visits")
 fig2, ax2 = plt.subplots()
 years = list(range(1, forecast_years + 1))
@@ -154,5 +154,20 @@ The total profit of a project in today’s dollars, accounting for inflation and
 The annual % used to adjust future earnings back to present-day value. Higher = more conservative.
 
 **Chair Utilization (%):**  
-Reflects real-world
+Reflects real-world capacity — chairs are rarely at 100% due to clean-up, late arrivals, and downtime. This input adjusts total visits and revenue.
+
+**RN FTE Calculation:**  
+Calculated based on total chairs, shifts/day, and chair-to-RN ratio.
+
+**Breakeven Point:**  
+The year when cumulative NPV becomes positive — meaning you’ve recovered your capital investment and are generating true profit.
+
+**Forecast Period:**  
+The number of years the ROI model looks ahead. Longer periods can show delayed profitability.
+
+**Visit Growth Forecast:**  
+Optional feature to model patient volume growth (e.g., from new neurologist or oncology demand). Applies % increase to capacity each year.
+
+**Why This Matters:**  
+This tool helps model different growth and investment strategies for infusion expansion — letting you size the buildout to match projected demand, staffing, and space.
     """)
