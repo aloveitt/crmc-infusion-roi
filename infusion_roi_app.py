@@ -30,7 +30,11 @@ with st.sidebar:
     sqft_per_chair = st.number_input("Square Feet per Chair", value=100)
     cost_per_sqft = st.number_input("Construction Cost per Sqft ($)", value=400)
     equipment_cost_per_chair = st.number_input("Equipment Cost per Chair ($)", value=20000)
-    utilization_rate = st.slider("Chair Utilization Rate (%)", min_value=0, max_value=100, value=50) / 100
+
+    st.subheader("📈 Utilization & Growth")
+    initial_utilization = st.slider("Initial Chair Utilization (%)", min_value=0, max_value=100, value=50) / 100
+    max_utilization = st.slider("Max Utilization Cap (%)", min_value=50, max_value=100, value=85) / 100
+    annual_growth = st.slider("Annual Visit Growth (%)", min_value=0.0, max_value=10.0, value=3.0, step=0.1) / 100
 
     st.subheader("🩺 Operating Costs")
     rn_cost = st.number_input("RN Annual Cost per FTE ($)", value=90000)
@@ -45,10 +49,9 @@ with st.sidebar:
     hours_per_day = st.number_input("Operating Hours per Day (for info only)", value=10)
     days_per_year = st.number_input("Operational Days per Year", value=260)
 
-    st.subheader("📈 Forecast Settings")
+    st.subheader("📊 Financial Settings")
     forecast_years = st.number_input("Forecast Period (Years)", value=10)
     discount_rate = st.number_input("Discount Rate (%)", value=3.0) / 100
-    annual_growth = st.slider("Annual Visit Growth (%)", min_value=0.0, max_value=10.0, value=3.0, step=0.1) / 100
 
 # ---------------- Calculations ----------------
 facility_sqft = num_chairs * sqft_per_chair
@@ -59,20 +62,17 @@ capital_cost_total = construction_cost + equipment_cost
 rn_fte_required = np.ceil((num_chairs / chairs_per_rn) * shifts_per_day)
 rn_cost_total = rn_fte_required * rn_cost
 
-# Visits per year
-visits_per_year = []
-raw_visits_per_year = []
 max_visits = num_chairs * visits_per_chair_per_day * days_per_year
 
-for year in range(forecast_years):
-    if year == 0:
-        raw_visits = max_visits
-    else:
-        raw_visits = raw_visits_per_year[-1] * (1 + annual_growth)
+# Visits per year based on ramping utilization
+visits_per_year = []
+utilization_by_year = []
 
-    adjusted_visits = raw_visits * utilization_rate
-    raw_visits_per_year.append(raw_visits)
+for year in range(forecast_years):
+    utilization = min(initial_utilization * ((1 + annual_growth) ** year), max_utilization)
+    adjusted_visits = max_visits * utilization
     visits_per_year.append(adjusted_visits)
+    utilization_by_year.append(utilization)
 
 # Financials
 revenue = [v * reimbursement for v in visits_per_year]
@@ -98,6 +98,7 @@ for year in range(forecast_years):
 st.subheader("📊 ROI Summary")
 summary_df = pd.DataFrame({
     "Year": list(range(1, forecast_years + 1)),
+    "Utilization (%)": [f"{u*100:.1f}%" for u in utilization_by_year],
     "Visits": np.round(visits_per_year),
     "Revenue ($)": np.round(revenue),
     "Op Costs ($)": np.round(operating_costs),
@@ -133,9 +134,9 @@ else:
 st.subheader("📈 Projected Annual Infusion Visits")
 fig2, ax2 = plt.subplots()
 years = list(range(1, forecast_years + 1))
-ax2.plot(years, visits_per_year, marker="o", label="Adjusted Visits (Utilization + Growth)")
+ax2.plot(years, visits_per_year, marker="o", label="Adjusted Visits (Utilization Ramp)")
 ax2.plot(years, [max_visits] * forecast_years, linestyle="--", color="gray", label="100% Max Capacity")
-ax2.plot(years, [max_visits * 0.85] * forecast_years, linestyle="--", color="orange", label="85% Target Max")
+ax2.plot(years, [max_visits * max_utilization] * forecast_years, linestyle="--", color="orange", label=f"{int(max_utilization*100)}% Cap")
 ax2.set_xlabel("Year")
 ax2.set_ylabel("Annual Infusion Visits")
 ax2.set_title("Projected Visit Volume Over Time")
@@ -154,43 +155,39 @@ The total profit of a project in today’s dollars, accounting for inflation and
 **Discount Rate:**  
 The annual % used to adjust future earnings back to present-day value. Higher = more conservative.
 
-**Chair Utilization (%):**  
-Reflects real-world capacity — chairs are rarely at 100% due to clean-up, late arrivals, and downtime. This input adjusts total visits and revenue.
-
-**RN FTE Calculation:**  
-Calculated based on total chairs, shifts/day, and chair-to-RN ratio.
+**Chair Utilization:**  
+Starts at your selected % and increases annually with growth, capped at the maximum utilization.
 
 **Breakeven Point:**  
 The year when cumulative NPV becomes positive — meaning you’ve recovered your capital investment and are generating true profit.
 
 **Forecast Period:**  
 The number of years the ROI model looks ahead. Longer periods can show delayed profitability.
-
-**Visit Growth Forecast:**  
-Applies % growth to infusion volume each year to simulate demand increases.
     """)
 
 with tab2:
     st.markdown("""
-**Capital Cost Formulas:**  
-- Construction Cost = Chairs × SqFt/Chair × Cost/SqFt  
-- Equipment Cost = Chairs × Cost per Chair  
-- Total Capital Cost = Construction + Equipment  
+**Capital Costs:**  
+- Construction = Chairs × SqFt/Chair × $/SqFt  
+- Equipment = Chairs × Equipment Cost  
+- Total Capital = Construction + Equipment  
 
-**Operating Cost Formulas:**  
+**Operating Costs:**  
 - RN FTEs = ceil((Chairs ÷ Chairs/RN) × Shifts/Day)  
-- RN Cost = RN FTEs × Cost per RN  
-- Drug/Supply Cost = Visits × Supply Cost per Visit  
-- Total Operating Cost = RN Cost + Overhead + Drug/Supply Cost  
+- RN Cost = RN FTEs × Cost/FTE  
+- Supplies = Visits × Supply Cost/Visit  
+- Total Op Cost = RN + Overhead + Supplies  
 
 **Revenue & Visits:**  
-- Max Visits = Chairs × Visits/Chair/Day × Days/Year  
-- Adjusted Visits = Max Visits × Utilization × (1 + Growth Rate)^Year  
-- Total Revenue = Adjusted Visits × Reimbursement  
+- Max Visits = Chairs × Visits/Day × Days/Year  
+- Utilization increases yearly:  
+  Util = min(Start × (1 + Growth)^Year, MaxCap)  
+- Adjusted Visits = Max Visits × Utilization  
+- Revenue = Visits × Reimbursement  
 
 **Profit & ROI:**  
 - Net Income = Revenue − Operating Cost  
 - Year 0 Cashflow = Net Income − Capital Cost  
 - Discounted Cash = Cash ÷ (1 + Discount Rate)^Year  
-- Cumulative NPV = Sum of Discounted Cash Flows
+- NPV = Sum of Discounted Cash Flows
     """)
